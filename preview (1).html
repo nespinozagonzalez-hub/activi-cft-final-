@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Código Rojo — Proyecto Educativo v3</title>
+  <style>
+    :root{
+      --bg:#07111c; --panel:#0d1d31; --panel2:#13283f; --border:#1e466b; --line:#14314d;
+      --cyan:#4de2ff; --cyan2:#91f2ff; --red:#ff5f7c; --gold:#ffd15c; --green:#57f0a2; --purple:#b691ff;
+      --text:#edf8ff; --muted:#89a9c0; --shadow:0 0 30px rgba(77,226,255,.12);
+      --display:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; --mono:'Consolas','Courier New',monospace;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{
+      min-height:100vh;font-family:var(--display);color:var(--text);overflow:hidden;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(77,226,255,.08), transparent 24%),
+        radial-gradient(circle at 82% 72%, rgba(255,95,124,.08), transparent 23%),
+        linear-gradient(180deg,#04101a 0%, #08121e 100%);
+    }
+    body::before{
+      content:"";position:fixed;inset:0;pointer-events:none;opacity:.45;
+      background:
+        linear-gradient(rgba(255,255,255,.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.015) 1px, transparent 1px);
+      background-size:34px 34px;
+    }
+
+    .screen{display:none;min-height:100vh;position:relative}
+    .screen.active{display:flex}
+    .center-screen{align-items:center;justify-content:center;padding:24px;text-align:center;overflow:hidden}
+
+    .orb{position:absolute;border-radius:50%;filter:blur(56px);opacity:.14;pointer-events:none;animation:float 10s ease-in-out infinite}
+    .orb.a{width:420px;height:420px;background:var(--cyan);top:-120px;left:-100px}
+    .orb.b{width:380px;height:380px;background:var(--red);right:-100px;bottom:-120px;animation-delay:2s}
+    .orb.c{width:260px;height:260px;background:var(--purple);left:40%;top:55%;animation-delay:4s}
+    @keyframes float{0%,100%{transform:translate(0,0)}50%{transform:translate(14px,20px)}}
+
+    .shell{
+      position:relative;z-index:2;width:min(860px,100%);
+      background:linear-gradient(180deg, rgba(13,29,49,.95), rgba(6,13,22,.97));
+      border:1px solid var(--border);border-radius:24px;padding:28px;
+      box-shadow:var(--shadow), inset 0 0 0 1px rgba(255,255,255,.03);
+      backdrop-filter:blur(10px);
+    }
+    .eyebrow{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:3px;padding:6px 12px;border:1px solid rgba(77,226,255,.35);color:var(--cyan);margin-bottom:16px;text-transform:uppercase;background:rgba(77,226,255,.06)}
+    .title{font-size:clamp(34px,6vw,66px);line-height:.96;font-weight:900;text-transform:uppercase;text-shadow:0 0 18px rgba(77,226,255,.16)}
+    .title .accent{color:var(--cyan)} .title .danger{color:var(--red)}
+    .sub{margin:18px auto 0;max-width:60ch;color:#d1e8f5;line-height:1.75;font-size:15px}
+
+    .btn,.choice-btn,.small-btn,.tab-btn,.close-btn{
+      border:none;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s ease,border-color .18s ease;
+      font-family:var(--display)
+    }
+    .btn:hover,.choice-btn:hover,.small-btn:hover,.tab-btn:hover,.close-btn:hover{transform:translateY(-2px)}
+    .btn{
+      margin-top:24px;padding:16px 20px;width:min(360px,100%);border-radius:16px;text-transform:uppercase;letter-spacing:2px;
+      font-weight:800;font-size:14px;background:linear-gradient(135deg,var(--cyan),#7deeff);color:#062031;box-shadow:0 0 24px rgba(77,226,255,.22)
+    }
+
+    .loading-wrap{width:min(520px,100%);margin:22px auto 0;text-align:left}
+    .loading-track{height:14px;border:1px solid var(--border);background:#04101b;overflow:hidden;border-radius:999px}
+    .loading-fill{height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--green));transition:width .4s ease}
+    .loading-list{margin-top:14px;display:grid;gap:8px}
+    .loading-step{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:1px}
+    .loading-step.active,.loading-step.done{color:var(--cyan2)}
+
+    .entry-input{
+      width:100%;background:rgba(77,226,255,.04);border:1px solid var(--border);color:var(--text);border-radius:14px;
+      padding:16px 18px;text-align:center;font-family:var(--mono);font-size:20px;letter-spacing:2px;outline:none;margin-top:18px
+    }
+    .entry-input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(77,226,255,.08)}
+
+    .hud{
+      position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+      padding:12px 16px;background:rgba(4,13,22,.95);border-bottom:1px solid var(--border);backdrop-filter:blur(10px)
+    }
+    .hud-left,.hud-right{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    .hud-tag{font-family:var(--mono);font-size:10px;letter-spacing:2px;padding:6px 10px;border:1px solid rgba(77,226,255,.24);color:var(--cyan2);background:rgba(77,226,255,.05);border-radius:999px;text-transform:uppercase}
+    .hud-tag.red{border-color:rgba(255,95,124,.25);color:#ff97ab;background:rgba(255,95,124,.1)}
+    .hud-tag.gold{border-color:rgba(255,209,92,.25);color:#ffe08d;background:rgba(255,209,92,.1)}
+    .hud-name{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:1px}.hud-name span{color:var(--cyan2)}
+
+    .game-main{
+      display:grid;grid-template-columns:1fr;gap:14px;padding:18px;overflow:auto;min-height:calc(100vh - 61px)
+    }
+    .card{
+      background:linear-gradient(180deg, rgba(13,29,49,.98), rgba(8,20,34,.98));
+      border:1px solid var(--border);border-radius:18px;padding:18px;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)
+    }
+    .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    .section-kicker{font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:2px;text-transform:uppercase}
+    .section-title{font-size:18px;font-weight:900;color:#fff;letter-spacing:.4px}
+    .phase-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,209,92,.08);border:1px solid rgba(255,209,92,.2);color:#ffe08d;font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase}
+    .mission-text{font-size:15px;line-height:1.82;color:#d7edf7}.mission-text .accent{color:var(--cyan)} .mission-text strong{color:#fff}
+
+    .status-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:16px}
+    .status-card{background:#081522;border:1px solid var(--line);border-radius:14px;padding:12px}
+    .status-label{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px;text-transform:uppercase}
+    .bar{width:100%;height:10px;background:#04101b;border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.03)}
+    .bar-fill{height:100%;width:50%;transition:width .35s ease,background .35s ease}
+    .status-value{margin-top:7px;font-size:12px;color:#d6edf7}
+    .lives-display{display:flex;gap:6px;align-items:center;margin-top:8px}
+    .life{width:16px;height:16px;border-radius:50%;background:var(--red);box-shadow:0 0 10px rgba(255,95,124,.35)}
+    .life.dead{background:#3b4b5b;box-shadow:none;opacity:.45}
+
+    .timeline{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .time-chip{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:uppercase}
+    .time-chip.active{background:rgba(255,95,124,.12);border-color:rgba(255,95,124,.3);color:#ff9aae}
+
+    .panel-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .tab-btn{
+      background:#0a1828;border:1px solid var(--line);color:var(--muted);padding:10px 12px;border-radius:12px;
+      font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase
+    }
+    .tab-btn.active{color:#04101a;background:linear-gradient(135deg,var(--cyan),#7deeff);border-color:transparent;font-weight:800}
+    .panel-view{display:none;margin-top:12px}
+    .panel-view.active{display:block}
+    .alert-feed{display:grid;gap:10px}
+    .feed-item{border:1px solid var(--line);background:#081522;border-left:4px solid var(--cyan);border-radius:12px;padding:12px 13px}
+    .feed-item.red{border-left-color:var(--red)} .feed-item.gold{border-left-color:var(--gold)} .feed-item.green{border-left-color:var(--green)} .feed-item.purple{border-left-color:var(--purple)}
+    .feed-type{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:4px;text-transform:uppercase}
+    .feed-title{font-weight:800;color:#fff;font-size:14px}
+    .feed-text{margin-top:4px;color:#cee6f3;font-size:13px;line-height:1.55}
+    .intel-box{display:grid;gap:10px}
+    .intel-item{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px}
+    .intel-item strong{display:block;color:#fff;margin-bottom:4px}
+    .intel-item span{display:block;color:#cfe4f0;font-size:13px;line-height:1.55}
+
+    .modal-wrap{
+      position:fixed;inset:0;background:rgba(0,0,0,.86);display:none;align-items:center;justify-content:center;
+      padding:18px;z-index:50;backdrop-filter:blur(8px)
+    }
+    .modal-wrap.open{display:flex}
+    .modal{
+      position:relative;width:min(1120px,96vw);max-height:min(90vh,900px);overflow:auto;
+      background:linear-gradient(180deg, rgba(14,32,51,.99), rgba(7,17,28,.99));
+      border:1px solid var(--border);border-radius:24px;padding:28px;box-shadow:0 0 40px rgba(0,0,0,.35);animation:slideUp .28s ease
+    }
+    @keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+    .modal-type{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:2px;padding:6px 10px;border-radius:999px;margin-bottom:12px;text-transform:uppercase;background:rgba(77,226,255,.08);color:var(--cyan2);border:1px solid rgba(77,226,255,.25)}
+    .modal-type.red{background:rgba(255,95,124,.1);color:#ff9eb0;border-color:rgba(255,95,124,.25)}
+    .modal-type.gold{background:rgba(255,209,92,.1);color:#ffe08d;border-color:rgba(255,209,92,.25)}
+    .modal-type.green{background:rgba(87,240,162,.1);color:#9dffc9;border-color:rgba(87,240,162,.25)}
+    .modal-title{font-size:clamp(24px,4vw,38px);font-weight:900;color:#fff;line-height:1.1;margin-bottom:12px;padding-right:56px}
+    .modal-text{font-size:clamp(15px,2.1vw,20px);line-height:1.85;color:#d5ebf6}
+    .modal-text strong{color:#fff}
+    .choices{display:grid;gap:12px;margin-top:18px}
+    .choice-btn{
+      width:100%;text-align:left;background:#0a1828;border:1px solid var(--line);color:var(--text);
+      padding:16px 18px;border-radius:16px;font-size:15px;line-height:1.7
+    }
+    .choice-btn small{display:block;margin-top:5px;color:var(--muted)}
+    .modal-buttons{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px}
+    .small-btn{
+      padding:12px 16px;border-radius:14px;font-size:13px;font-weight:800;letter-spacing:1px;
+      background:linear-gradient(135deg,var(--cyan),#7deeff);color:#062031
+    }
+    .small-btn.secondary{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.1)}
+    .close-btn{
+      position:absolute;top:14px;right:14px;width:42px;height:42px;border-radius:50%;
+      border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;font-size:22px;line-height:1
+    }
+    .close-btn:hover{background:rgba(255,255,255,.12);transform:none}
+
+    .ending-card{max-width:840px;margin:0 auto;text-align:left}
+    .ending-title{font-size:30px;font-weight:900;margin-bottom:8px}
+    .ending-title.good{color:var(--green)} .ending-title.warn{color:var(--gold)} .ending-title.bad{color:var(--red)}
+    .ending-meta{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:18px}
+    .ending-box{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);padding:18px;border-radius:16px;line-height:1.85;color:#d7edf7}
+    .ending-stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:16px}
+
+    @media (max-width:760px){
+      .status-grid,.ending-stats{grid-template-columns:1fr 1fr}
+      .game-main{padding:14px}
+      .card{padding:14px}
+      .modal{width:100%;max-height:94vh;padding:18px;border-radius:20px}
+      .close-btn{top:10px;right:10px;width:40px;height:40px}
+      .modal-buttons{justify-content:stretch}
+      .modal-buttons .small-btn{width:100%}
+      .panel-tabs{grid-template-columns:1fr}
+    }
+    @media (max-width:520px){
+      .status-grid,.ending-stats{grid-template-columns:1fr}
+      .hud{padding:10px 12px}
+      .hud-left,.hud-right{width:100%}
+      .hud-right{justify-content:flex-start}
+      .time-chip{padding:7px 10px;font-size:9px}
+      .modal{padding:16px}
+    }
+  </style>
+</head>
+<body>
+  <div class="screen active center-screen" id="s-cover">
+    <div class="orb a"></div><div class="orb b"></div><div class="orb c"></div>
+    <div class="shell">
+      <div class="eyebrow">Centro de Gestión Educativa · Simulación crítica</div>
+      <div class="title">Código <span class="danger">Rojo</span><br><span class="accent">Proyecto Educativo</span></div>
+      <p class="sub">Simulación de crisis para la gestión de un proyecto educativo bajo presión.</p>
+      <button class="btn" onclick="beginSequence()">Iniciar simulación crítica</button>
+    </div>
+  </div>
+
+  <div class="screen center-screen" id="s-loading">
+    <div class="orb a"></div><div class="orb b"></div>
+    <div class="shell">
+      <div class="eyebrow">Sincronizando sistemas</div>
+      <div class="title" style="font-size:42px">Activando <span class="accent">Panel de Crisis</span></div>
+      <p class="sub" id="loadingStatus">Validando entorno del proyecto.</p>
+      <div class="loading-wrap">
+        <div class="loading-track"><div class="loading-fill" id="loadingFill"></div></div>
+        <div class="loading-list" id="loadingSteps">
+          <div class="loading-step">[ ] Cargando cronograma base</div>
+          <div class="loading-step">[ ] Detectando riesgos ocultos</div>
+          <div class="loading-step">[ ] Vinculando equipo organizador</div>
+          <div class="loading-step">[ ] Proyectando familias y recursos</div>
+          <div class="loading-step">[ ] Escenario de crisis disponible</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen center-screen" id="s-checkin">
+    <div class="orb a"></div>
+    <div class="shell" style="max-width:520px">
+      <div class="eyebrow">Control de ingreso</div>
+      <div class="title" style="font-size:38px">Equipo <span class="accent">Organizador</span></div>
+      <p class="sub">Ingresa el nombre del equipo o curso para abrir el panel de misión.</p>
+      <input class="entry-input" id="entryName" placeholder="NOMBRE DEL EQUIPO" maxlength="28" />
+      <button class="btn" id="entryBtn" disabled onclick="launchGame()">Validar y entrar</button>
+    </div>
+  </div>
+
+  <div class="screen" id="s-game">
+    <div class="hud">
+      <div class="hud-left">
+        <div class="hud-tag">Simulación crítica</div>
+        <div class="hud-tag gold" id="phaseTag">Fase 0 · 3 vidas</div>
+        <div class="hud-tag red" id="timeTag">Día -5</div>
+      </div>
+      <div class="hud-right"><div class="hud-name">Equipo: <span id="hudName">—</span></div></div>
+    </div>
+
+    <div class="game-main">
+      <div class="card">
+        <div class="card-head">
+          <div><div class="section-kicker">Estado del proyecto</div><div class="section-title">Panel de control en vivo</div></div>
+          <div class="phase-badge" id="phaseBadge">Planificación inicial</div>
+        </div>
+
+        <div class="status-grid">
+          <div class="status-card"><div class="status-label">Organización</div><div class="bar"><div class="bar-fill" id="barOrg"></div></div><div class="status-value" id="valOrg">52 / 100</div></div>
+          <div class="status-card"><div class="status-label">Comunicación</div><div class="bar"><div class="bar-fill" id="barCom"></div></div><div class="status-value" id="valCom">52 / 100</div></div>
+          <div class="status-card"><div class="status-label">Calma del equipo</div><div class="bar"><div class="bar-fill" id="barCalm"></div></div><div class="status-value" id="valCalm">52 / 100</div></div>
+          <div class="status-card"><div class="status-label">Viabilidad real</div><div class="bar"><div class="bar-fill" id="barReal"></div></div><div class="status-value" id="valReal">52 / 100</div></div>
+          <div class="status-card"><div class="status-label">Tiempo útil</div><div class="bar"><div class="bar-fill" id="barTime"></div></div><div class="status-value" id="valTime">5 / 5</div></div>
+          <div class="status-card"><div class="status-label">Vidas del proyecto</div><div class="lives-display" id="livesDisplay"></div><div class="status-value" id="valLives">3 vidas</div></div>
+        </div>
+
+        <div class="timeline" id="timelineWrap"></div>
+        <div class="mission-text" id="missionText">La <span class="accent">Jornada de Oficios y Profesiones en Familia</span> parece estable. Todavía no ha pasado nada grave. Esa tranquilidad es completamente transitoria.</div>
+      </div>
+
+      <div class="card" id="currentAlertCard">
+        <div class="card-head">
+          <div><div class="section-kicker">Alerta activa</div><div class="section-title">Esperando siguiente evento</div></div>
+        </div>
+        <div class="mission-text">Ahora el juego va a una sola columna para que todo se vea más claro. Las alertas nuevas aparecerán al centro.</div>
+        <div class="modal-buttons"><button class="small-btn" onclick="startScenario()" id="startScenarioBtn">Comenzar misión</button></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div><div class="section-kicker">Panel de apoyo</div><div class="section-title">Alertas, contenidos y pistas</div></div></div>
+        <div class="panel-tabs">
+          <button class="tab-btn active" onclick="switchTab('alerts', this)">Alertas</button>
+          <button class="tab-btn" onclick="switchTab('intel', this)">Contenidos y pistas</button>
+        </div>
+
+        <div class="panel-view active" id="tab-alerts">
+          <div class="alert-feed" id="alertFeed">
+            <div class="feed-item"><div class="feed-type">Sistema</div><div class="feed-title">Panel listo</div><div class="feed-text">La simulación aún no comienza.</div></div>
+          </div>
+        </div>
+
+        <div class="panel-view" id="tab-intel">
+          <div class="intel-box">
+            <div class="intel-item"><strong>Planificación</strong><span>Un proyecto se sostiene mejor cuando define tareas, responsables y tiempos de forma explícita.</span></div>
+            <div class="intel-item"><strong>Comunicación</strong><span>No basta con informar: la información debe ser clara, consistente y verificable para quienes la reciben.</span></div>
+            <div class="intel-item"><strong>Recursos</strong><span>Una buena idea puede fracasar si no se ajusta a los recursos reales disponibles.</span></div>
+            <div class="intel-item"><strong>Seguimiento</strong><span>Anticipar problemas y revisar el escenario evita que el caos llegue de golpe el día del evento.</span></div>
+            <div class="intel-item"><strong>Gestión del equipo</strong><span>Cuando el equipo se tensiona, la calidad de las decisiones también empieza a caer.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen center-screen" id="s-ending">
+    <div class="orb a"></div><div class="orb b"></div>
+    <div class="shell ending-card">
+      <div class="eyebrow">Resultado de la simulación</div>
+      <div class="ending-title warn" id="endingTitle">Proyecto completado</div>
+      <div class="ending-meta" id="endingMeta">Estado final</div>
+      <div class="ending-box" id="endingText"></div>
+      <div class="ending-stats">
+        <div class="status-card"><div class="status-label">Organización</div><div class="status-value" id="endOrg">—</div></div>
+        <div class="status-card"><div class="status-label">Comunicación</div><div class="status-value" id="endCom">—</div></div>
+        <div class="status-card"><div class="status-label">Calma</div><div class="status-value" id="endCalm">—</div></div>
+        <div class="status-card"><div class="status-label">Viabilidad</div><div class="status-value" id="endReal">—</div></div>
+        <div class="status-card"><div class="status-label">Tiempo</div><div class="status-value" id="endTime">—</div></div>
+        <div class="status-card"><div class="status-label">Vidas</div><div class="status-value" id="endLives">—</div></div>
+      </div>
+      <div class="modal-buttons"><button class="btn" onclick="restartGame()">Jugar otra vez</button></div>
+    </div>
+  </div>
+
+  <div class="modal-wrap" id="modalWrap">
+    <div class="modal">
+      <button class="close-btn" aria-label="Cerrar alerta" onclick="closeModal()">×</button>
+      <div class="modal-type" id="modalType">Alerta</div>
+      <div class="modal-title" id="modalTitle">—</div>
+      <div class="modal-text" id="modalText">—</div>
+      <div class="choices" id="modalChoices"></div>
+      <div class="modal-buttons" id="modalButtons"><button class="small-btn secondary" onclick="closeModal()">Cerrar</button></div>
+    </div>
+  </div>
+
+  <script>
+    const STATE = {team:'',org:52,com:52,calm:52,real:52,time:5,lives:3,phase:0,index:-1,started:false,currentAlert:null,pendingNotice:null,scenarioComplete:false};
+    const loadingTexts = ['Validando entorno del proyecto.','Conectando cronograma, familias y equipo.','Detectando riesgos ocultos.','Inyectando caos controlado en la simulación.','Escenario crítico disponible.'];
+    const phaseNames = ['', 'Planificación inicial', 'Comunicación y recursos', 'Riesgos y ajustes', 'Crisis previa al evento', 'Día del evento'];
+    const timeNames = ['Día -5','Día -4','Día -3','Día -2','Día -1','Evento'];
+
+    const events = [
+      { phase:1, type:'cyan', system:'Planificación', title:'ALERTA 01 · Inicio sin estructura real', preview:'La jornada se anunció con entusiasmo, pero nadie puede decir con total seguridad quién está cerrando qué.', text:'Falta una semana para la Jornada de Oficios y Profesiones con familias. El equipo está motivado, pero las tareas aún no están realmente cerradas. Jefatura asume que todo ya está encaminado. No lo está.', choices:[
+        { key:'A', correct:false, instafail:false, label:'Abrir una reunión larga para revisar cada detalle, aunque eso consuma casi toda la tarde de coordinación.', sub:'Da sensación de rigurosidad total, pero puede tragarse tiempo valioso.', result:'La reunión se volvió tan extensa que salieron más cansadas que claras. Se habló mucho, se cerró poco y el proyecto perdió tiempo útil.', effect:{org:+2, com:+3, calm:-10, real:-4, time:-2}, notices:[{tone:'red', title:'Jefatura consulta', text:'“¿Ya quedó enviado el cronograma definitivo?” Nadie responde con convicción.'}] },
+        { key:'B', correct:true, instafail:false, label:'Hacer una reunión breve con responsables definidos, entregables concretos y chequeo final de comprensión.', sub:'Menos épica, más orden real.', result:'No fue romántico, pero sí efectivo. Por primera vez el proyecto tiene responsables claros y menos espacio para el clásico “yo pensé que eso lo veía otra persona”.', effect:{org:+16, com:+8, calm:-2, real:+10, time:0}, notices:[{tone:'green', title:'Registro interno', text:'Se definieron responsables y tareas críticas. El caos todavía existe, pero ahora tiene algo de contención.'}] },
+        { key:'C', correct:false, instafail:false, label:'Coordinar todo por chat para moverse rápido y no cargar al equipo con otra reunión.', sub:'Ágil, moderno y peligrosamente ambiguo.', result:'La conversación fluyó... entre stickers, audios y mensajes no leídos. El proyecto ganó velocidad aparente y perdió nitidez operativa.', effect:{org:-8, com:-6, calm:+4, real:-6, time:0}, notices:[{tone:'gold', title:'Mensaje emergente', text:'“Perdón, ¿quién quedó a cargo del contacto con las familias?” Silencio administrativo.'}] },
+        { key:'D', correct:false, instafail:false, label:'Repartir tareas según afinidad sin registrar nada formalmente para aprovechar el impulso inicial.', sub:'Se siente práctico y colaborativo al principio.', result:'Hubo movimiento inmediato, pero también duplicidad de funciones y una tarea crítica quedó flotando como concepto inspirador.', effect:{org:-6, com:+2, calm:+6, real:-5, time:0}, notices:[{tone:'red', title:'Alerta operativa', text:'Dos personas preparan lo mismo. Nadie está cerrando la logística del espacio.'}] }
+      ]},
+      { phase:1, type:'gold', system:'Comunicación', title:'ALERTA 02 · Mensaje a familias bajo presión', preview:'Hay que comunicar horario, materiales y participación. La precisión importa más de lo que parece.', text:'Ahora sí hay que informar a las familias. Horario, materiales, vestimenta y tipo de participación. Todo debe salir hoy. Varias opciones parecen buenas. Algunas solo lo parecen.', choices:[
+        { key:'A', correct:true, instafail:false, label:'Enviar un mensaje escrito breve, ordenado y revisado por otra integrante antes de publicarlo.', sub:'Menos cercano, pero mucho más controlable.', result:'No fue el mensaje más cálido del semestre, pero sí uno que las familias entendieron sin necesidad de interpretación artística.', effect:{org:+6, com:+18, calm:0, real:+6, time:0}, notices:[{tone:'green', title:'Respuesta recibida', text:'“Gracias, quedó clarísimo”. El equipo casi enmarca el mensaje.'}] },
+        { key:'B', correct:false, instafail:false, label:'Mandar un audio cercano y largo para que la información se sienta más humana.', sub:'Muy real, muy cálido, muy riesgoso.', result:'El audio tenía intención, contexto y alma. También tenía demasiada información para quien lo escuchó a medias.', effect:{org:-4, com:-12, calm:+5, real:-6, time:0}, notices:[{tone:'red', title:'Mensaje de apoderada', text:'“Profe, perdón… ¿era hoy o mañana? Lo escuché mientras hacía once”.'}] },
+        { key:'C', correct:false, instafail:false, label:'Hacer una imagen bonita con la información resumida y priorizar lo visual.', sub:'Atractiva, rápida y peligrosamente incompleta.', result:'La invitación se veía preciosa. El detalle es que la belleza no suplió la claridad sobre materiales y tiempos.', effect:{org:0, com:-5, calm:+4, real:-4, time:0}, notices:[{tone:'gold', title:'Reacción familiar', text:'“La imagen estaba hermosa, pero no entendí si había que llevar algo o no”.'}] },
+        { key:'D', correct:false, instafail:true, label:'Enviar primero lo básico y completar luego con otro mensaje cuando el equipo termine de decidir los detalles.', sub:'Parece flexible. En realidad, puede romper todo.', result:'Se enviaron dos versiones distintas de la misma información. Las familias quedaron con horarios cruzados, materiales contradictorios y una confianza peligrosamente baja.', effect:{org:-14, com:-18, calm:-12, real:-18, time:-1}, notices:[{tone:'red', title:'Crisis de confianza', text:'Tres familias escriben reclamando información contradictoria. Jefatura ya fue copiada en el hilo.'}] }
+      ]}
+    ];
+
+    function beginSequence(){
+      showScreen('s-loading');
+      const fill=document.getElementById('loadingFill');
+      const status=document.getElementById('loadingStatus');
+      const steps=[...document.querySelectorAll('#loadingSteps .loading-step')];
+      let i=0;
+      steps.forEach(s=>s.classList.remove('active','done'));
+      const run=()=>{
+        if(i>0){
+          steps[i-1].classList.remove('active');
+          steps[i-1].classList.add('done');
+          steps[i-1].textContent=steps[i-1].textContent.replace('[ ]','[✓]');
+        }
+        if(i<steps.length){
+          steps[i].classList.add('active');
+          fill.style.width=`${((i+1)/steps.length)*100}%`;
+          status.textContent=loadingTexts[i];
+          i++;
+          setTimeout(run,620);
+        } else {
+          setTimeout(()=>showScreen('s-checkin'),380);
+        }
+      };
+      setTimeout(run,180);
+    }
+
+    const entry=()=>document.getElementById('entryName');
+    document.addEventListener('DOMContentLoaded',()=>{
+      entry().addEventListener('input',e=>{document.getElementById('entryBtn').disabled=!e.target.value.trim();});
+      renderTimeline(0);
+      updateAll();
+    });
+
+    function launchGame(){
+      STATE.team=entry().value.trim().toUpperCase();
+      document.getElementById('hudName').textContent=STATE.team;
+      showScreen('s-game');
+      updateAll();
+      logEvent('El equipo ingresó al panel de crisis. La simulación aún no ha comenzado.');
+    }
+
+    function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
+    function switchTab(tab, btn){
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.panel-view').forEach(v=>v.classList.remove('active'));
+      document.getElementById('tab-'+tab).classList.add('active');
+    }
+
+    function startScenario(){
+      if(STATE.started) return;
+      STATE.started=true;
+      document.getElementById('startScenarioBtn').disabled=true;
+      document.getElementById('missionText').innerHTML='La <span class="accent">Jornada de Oficios y Profesiones en Familia</span> entra oficialmente en zona de riesgo. Desde ahora, cada error puede costar una vida operativa del proyecto.';
+      pushFeed('Sistema','Simulación iniciada','El proyecto ya está en movimiento. Comienzan a aparecer los primeros problemas.','cyan');
+      nextEvent();
+    }
+
+    function nextEvent(){
+      STATE.index+=1;
+      if(STATE.index>=events.length){finishScenario();return;}
+      const ev=events[STATE.index];
+      STATE.phase=ev.phase;
+      const timeIndex=Math.min(STATE.index,timeNames.length-1);
+      document.getElementById('timeTag').textContent=timeNames[timeIndex];
+      document.getElementById('phaseTag').textContent=`Fase ${STATE.phase} · ${STATE.lives} vidas`;
+      document.getElementById('phaseBadge').textContent=phaseNames[STATE.phase];
+      renderTimeline(timeIndex);
+      renderCurrentAlert(ev);
+      pushFeed(ev.system,ev.title,ev.preview||'Nueva situación detectada en el proyecto.',ev.type);
+      logEvent(`Nueva alerta: ${ev.title}.`);
+      updateAll();
+    }
+
+    function renderTimeline(activeIndex){
+      const wrap=document.getElementById('timelineWrap');
+      wrap.innerHTML='';
+      timeNames.forEach((name,idx)=>{
+        const chip=document.createElement('div');
+        chip.className='time-chip'+(idx===activeIndex?' active':'');
+        chip.textContent=name;
+        wrap.appendChild(chip);
+      });
+    }
+
+    function renderCurrentAlert(ev){
+      const card=document.getElementById('currentAlertCard');
+      card.innerHTML=`
+        <div class="card-head">
+          <div><div class="section-kicker">Alerta activa</div><div class="section-title">${ev.title}</div></div>
+          <div class="phase-badge">${ev.system}</div>
+        </div>
+        <div class="mission-text">${ev.text}</div>
+        <div class="modal-buttons"><button class="small-btn" onclick="openEventModal()">Abrir decisión</button></div>
+      `;
+      STATE.currentAlert=ev;
+      openEventModal();
+    }
+
+    function openEventModal(){
+      const ev=STATE.currentAlert;
+      if(!ev) return;
+      document.getElementById('modalType').className='modal-type '+toneClass(ev.type);
+      document.getElementById('modalType').textContent=ev.system.toUpperCase();
+      document.getElementById('modalTitle').textContent=ev.title;
+      document.getElementById('modalText').innerHTML=ev.text;
+      const choices=document.getElementById('modalChoices');
+      choices.innerHTML='';
+      ev.choices.forEach(opt=>{
+        const btn=document.createElement('button');
+        btn.className='choice-btn';
+        btn.innerHTML=`<strong>${opt.key}.</strong> ${opt.label}<small>${opt.sub}</small>`;
+        btn.onclick=()=>chooseOption(opt.key);
+        choices.appendChild(btn);
+      });
+      document.getElementById('modalButtons').innerHTML=`<button class="small-btn secondary" onclick="closeModal()">Cerrar</button>`;
+      document.getElementById('modalWrap').classList.add('open');
+    }
+
+    function closeModal(){document.getElementById('modalWrap').classList.remove('open');}
+
+    function chooseOption(key){
+      const ev=STATE.currentAlert;
+      const opt=ev.choices.find(c=>c.key===key);
+      if(!opt) return;
+      applyEffect(opt.effect);
+      closeModal();
+      logEvent(`Decisión tomada [${opt.key}]: ${shorten(opt.label)}`);
+      if(opt.correct) showConsequence(opt); else loseLife(opt,ev);
+    }
+
+    function showConsequence(opt){
+      document.getElementById('modalType').className='modal-type green';
+      document.getElementById('modalType').textContent='Decisión correcta';
+      document.getElementById('modalTitle').textContent='El proyecto sigue en pie';
+      document.getElementById('modalText').innerHTML=`${opt.result}`;
+      document.getElementById('modalChoices').innerHTML='';
+      document.getElementById('modalButtons').innerHTML=`<button class="small-btn" onclick="continueAfterConsequence()">Continuar</button>`;
+      document.getElementById('modalWrap').classList.add('open');
+      STATE.pendingNotice=opt.notices?.length?opt.notices[0]:null;
+      pushFeed('Consecuencia','Decisión aplicada',opt.result,'green');
+      updateAll();
+    }
+
+    function loseLife(opt,ev){
+      STATE.lives=Math.max(0,STATE.lives-1);
+      pushFeed('Error crítico',`Decisión fallida en ${ev.system}`,opt.result,'red');
+      let extra=`<strong>Consecuencia:</strong> el proyecto pierde una vida operativa. Quedan <strong>${STATE.lives}</strong> oportunidades antes del colapso total.`;
+      if(opt.instafail||STATE.lives<=0) extra=`<strong>Consecuencia fatal:</strong> esta decisión activó un fallo crítico y el proyecto entra en colapso operativo inmediato.`;
+      document.getElementById('modalType').className='modal-type red';
+      document.getElementById('modalType').textContent=opt.instafail?'Instafail':'Error';
+      document.getElementById('modalTitle').textContent=opt.instafail?'Fallo crítico del proyecto':'Consecuencia grave';
+      document.getElementById('modalText').innerHTML=`${opt.result}<br><br>${extra}`;
+      document.getElementById('modalChoices').innerHTML='';
+      document.getElementById('modalButtons').innerHTML=`<button class="small-btn" onclick="continueAfterFailure(${opt.instafail?'true':'false'})">Continuar</button>`;
+      document.getElementById('modalWrap').classList.add('open');
+      STATE.pendingNotice=opt.notices?.length?opt.notices[0]:null;
+      updateAll();
+    }
+
+    function continueAfterConsequence(){
+      closeModal();
+      if(STATE.pendingNotice){showNotice(STATE.pendingNotice);STATE.pendingNotice=null;}
+      else nextEvent();
+    }
+
+    function continueAfterFailure(instaFail=false){
+      closeModal();
+      if(instaFail||STATE.lives<=0||checkImmediateFailure()){finishScenario(true);return;}
+      if(STATE.pendingNotice){showNotice(STATE.pendingNotice);STATE.pendingNotice=null;}
+      else nextEvent();
+    }
+
+    function showNotice(notice){
+      document.getElementById('modalType').className='modal-type '+toneClass(notice.tone||'gold');
+      document.getElementById('modalType').textContent='Notificación';
+      document.getElementById('modalTitle').textContent=notice.title;
+      document.getElementById('modalText').innerHTML=notice.text;
+      document.getElementById('modalChoices').innerHTML='';
+      document.getElementById('modalButtons').innerHTML=`<button class="small-btn" onclick="closeNoticeAndContinue()">Cerrar y seguir</button>`;
+      document.getElementById('modalWrap').classList.add('open');
+      pushFeed('Notificación',notice.title,notice.text,notice.tone||'gold');
+      logEvent(`Notificación recibida: ${notice.title}.`);
+    }
+
+    function closeNoticeAndContinue(){closeModal();nextEvent();}
+    function applyEffect(effect){
+      STATE.org=clamp(STATE.org+(effect.org||0));
+      STATE.com=clamp(STATE.com+(effect.com||0));
+      STATE.calm=clamp(STATE.calm+(effect.calm||0));
+      STATE.real=clamp(STATE.real+(effect.real||0));
+      STATE.time=clamp(STATE.time+(effect.time||0),0,5);
+    }
+    function clamp(value,min=0,max=100){return Math.max(min,Math.min(max,value));}
+    function toneClass(tone){return ({red:'red',gold:'gold',green:'green',cyan:'',purple:'purple'}[tone]||'');}
+    function shorten(text){return text.length>88?text.slice(0,85)+'...':text;}
+
+    function pushFeed(type,title,text,tone='cyan'){
+      const feed=document.getElementById('alertFeed');
+      const item=document.createElement('div');
+      item.className='feed-item '+(tone||'');
+      item.innerHTML=`<div class="feed-type">${type}</div><div class="feed-title">${title}</div><div class="feed-text">${text}</div>`;
+      feed.prepend(item);
+    }
+
+    function logEvent(text){
+      const log=document.getElementById('eventLog');
+      if(log.children.length===1&&log.children[0].textContent==='Aún no hay eventos registrados.') log.innerHTML='';
+      const item=document.createElement('div');
+      item.className='feed-item purple';
+      item.innerHTML=`<div class="feed-type">Registro</div><div class="feed-title">Evento</div><div class="feed-text">${text}</div>`;
+      log.prepend(item);
+    }
+
+    function updateBar(id,value){
+      const el=document.getElementById(id);
+      el.style.width=`${value}%`;
+      if(value>=70) el.style.background='linear-gradient(90deg,#80ffc3,#57f0a2)';
+      else if(value>=45) el.style.background='linear-gradient(90deg,#ffe48a,#ffd15c)';
+      else el.style.background='linear-gradient(90deg,#ff91a3,#ff5f7c)';
+    }
+
+    function renderLives(){
+      const wrap=document.getElementById('livesDisplay');
+      wrap.innerHTML='';
+      for(let i=0;i<3;i++){
+        const dot=document.createElement('div');
+        dot.className='life'+(i<STATE.lives?'':' dead');
+        wrap.appendChild(dot);
+      }
+      document.getElementById('valLives').textContent=`${STATE.lives} vidas`;
+    }
+
+    function updateAll(){
+      updateBar('barOrg',STATE.org); updateBar('barCom',STATE.com); updateBar('barCalm',STATE.calm); updateBar('barReal',STATE.real);
+      document.getElementById('barTime').style.width=`${(STATE.time/5)*100}%`;
+      document.getElementById('barTime').style.background=STATE.time>=3?'linear-gradient(90deg,#ff91a3,#ff5f7c)':'linear-gradient(90deg,#ff7a95,#ff385f)';
+      document.getElementById('valOrg').textContent=`${STATE.org} / 100`;
+      document.getElementById('valCom').textContent=`${STATE.com} / 100`;
+      document.getElementById('valCalm').textContent=`${STATE.calm} / 100`;
+      document.getElementById('valReal').textContent=`${STATE.real} / 100`;
+      document.getElementById('valTime').textContent=`${STATE.time} / 5`;
+      document.getElementById('phaseTag').textContent=`Fase ${STATE.phase} · ${STATE.lives} vidas`;
+      renderLives();
+    }
+
+    function checkImmediateFailure(){
+      const critical=[STATE.org,STATE.com,STATE.calm,STATE.real].filter(v=>v<=15).length;
+      return STATE.time<=0||critical>=2;
+    }
+
+    function finishScenario(forcedFail=false){
+      const total=STATE.org+STATE.com+STATE.calm+STATE.real+(STATE.time*20)+(STATE.lives*15);
+      let title='',meta='',body='',cls='warn';
+      if(forcedFail||total<200){
+        title='PROYECTO PERDIDO'; meta='La simulación terminó en colapso';
+        body='La jornada no logró sostenerse. Las malas decisiones se acumularon, las alertas se volvieron inmanejables y el proyecto terminó cayendo por sobrecarga, mala lectura del contexto y pérdida de conducción real.';
+        cls='bad';
+      } else if(total<285){
+        title='SUPERVIVIERON APENAS'; meta='La actividad ocurrió, pero el costo fue altísimo';
+        body='El proyecto llegó al evento, pero ya muy erosionado. La jornada se sostuvo con improvisación intensa, respuestas tardías y un equipo desgastado.';
+        cls='warn';
+      } else {
+        title='PROYECTO RESCATADO'; meta='Hubo caos, pero también conducción suficiente';
+        body='La jornada atravesó problemas reales, pero el equipo logró sostenerla con decisiones suficientemente buenas. No fue fácil ni limpio, pero sí una muestra de gestión bajo presión.';
+        cls='good';
+      }
+      document.getElementById('endingTitle').textContent=title;
+      document.getElementById('endingTitle').className='ending-title '+cls;
+      document.getElementById('endingMeta').textContent=`${meta} · Vidas restantes: ${STATE.lives}`;
+      document.getElementById('endingText').textContent=body;
+      document.getElementById('endOrg').textContent=`${STATE.org} / 100`;
+      document.getElementById('endCom').textContent=`${STATE.com} / 100`;
+      document.getElementById('endCalm').textContent=`${STATE.calm} / 100`;
+      document.getElementById('endReal').textContent=`${STATE.real} / 100`;
+      document.getElementById('endTime').textContent=`${STATE.time} / 5`;
+      document.getElementById('endLives').textContent=`${STATE.lives} vidas`;
+      showScreen('s-ending');
+    }
+
+    function restartGame(){location.reload();}
+  </script>
+</body>
+</html>
